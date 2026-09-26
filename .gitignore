@@ -1,0 +1,8 @@
+.gradle/
+build/
+.idea/
+*.iml
+.DS_Store
+node_modules/
+.wrangler/
+.dev.vars

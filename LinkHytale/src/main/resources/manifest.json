@@ -1,0 +1,20 @@
+{
+  "Group": "Link",
+  "Name": "Link",
+  "Version": "@version@",
+  "Description": "Signed player transfers and matchmaking between your Hytale servers. No database needed.",
+  "Authors": [
+    {
+      "Name": "Hive"
+    }
+  ],
+  "Website": "https://beehivesys.net",
+  "ServerVersion": "*",
+  "Dependencies": {
+  },
+  "OptionalDependencies": {
+  },
+  "DisabledByDefault": false,
+  "Main": "net.beehivesys.link.hytale.LinkPlugin",
+  "IncludesAssetPack": false
+}
