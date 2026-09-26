@@ -9,6 +9,11 @@ $0.20 a month.
 
 ## Deploy
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/HiveScaleSystems/link/tree/main/cloudflare-registry)
+
+The button forks this folder into your account, creates the Durable Object, and asks for
+`LINK_TOKEN`. Or deploy by hand:
+
 ```bash
 npm install
 npx wrangler login

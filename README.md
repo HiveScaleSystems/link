@@ -60,7 +60,11 @@ The first server to connect creates the network secret in Redis, so there is not
 
 ### Cloudflare Worker
 
-Deploy the registry once (see `cloudflare-registry/README.md`), then on every server:
+Deploy the registry once with the button below (or by hand, see `cloudflare-registry/README.md`),
+then on every server:
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/HiveScaleSystems/link/tree/main/cloudflare-registry)
+
 
 ```json
 {
