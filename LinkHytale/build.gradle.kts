@@ -4,10 +4,9 @@ plugins {
 }
 
 
-// Link targets the current public Hytale release.
-// Hytale rotates old builds off its Maven repo, so check
+// Set in gradle.properties. Hytale rotates old builds off its Maven repo, so check
 // https://maven.hytale.com/release/com/hypixel/hytale/Server/maven-metadata.xml before changing it.
-val hytaleServerVersion = "0.6.8"
+val hytaleVersion = providers.gradleProperty("hytaleVersion").get()
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
@@ -18,16 +17,12 @@ base {
 }
 
 repositories {
-    mavenCentral()
-    maven {
-        name = "hytale-release"
-        url = uri("https://maven.hytale.com/release")
-    }
+    maven(if ("-pre" in hytaleVersion) "https://maven.hytale.com/pre-release" else "https://maven.hytale.com/release")
 }
 
 dependencies {
     api(project(":LinkCore"))
-    compileOnly("com.hypixel.hytale:Server:$hytaleServerVersion")
+    compileOnly("com.hypixel.hytale:Server:$hytaleVersion")
 }
 
 tasks.processResources {

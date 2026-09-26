@@ -2,8 +2,6 @@ name: release
 
 # Push a tag like v0.2.0 (or run manually) to build the Hytale jar and publish it as a GitHub
 # Release. Versions with a "-" (v0.2.0-beta.1) become pre-releases.
-#
-# The Hytale server API comes from the public maven.hytale.com repository, so no secrets are needed.
 
 on:
   push:
@@ -35,12 +33,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
 
-      - name: Resolve version
+      - name: Resolve versions
         run: |
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
             echo "::error::Tag '$TAG' must look like v1.2.3 or v1.2.3-beta.1"; exit 1
           fi
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          echo "HYTALE_VERSION=$(./gradlew -q properties --property hytaleVersion | awk '/^hytaleVersion:/ {print $2}')" >> "$GITHUB_ENV"
 
       - name: Build
         run: ./gradlew build -Pversion="$VERSION"
@@ -54,18 +53,16 @@ jobs:
 
       - name: Write release notes header
         run: |
-          hytale=$(sed -n 's/^val hytaleServerVersion = "\(.*\)"/\1/p' LinkHytale/build.gradle.kts)
-          {
-            echo "## Downloads"
-            echo
-            echo "| Platform | File | Install |"
-            echo "|---|---|---|"
-            echo "| Hytale | \`link-hytale-$VERSION.jar\` | \`mods/\` |"
-            echo
-            echo "Built against Hytale server \`$hytale\`. The Cloudflare registry deploys from"
-            echo "\`cloudflare-registry/\` in this tag's source."
-            echo
-          } > notes.md
+          cat > notes.md <<NOTES
+          ## Downloads
+
+          | Platform | File | Install |
+          |---|---|---|
+          | Hytale (built against server API $HYTALE_VERSION) | \`link-hytale-$VERSION.jar\` | \`mods/\` |
+
+          The Cloudflare registry deploys from \`cloudflare-registry/\` in this tag's source.
+
+          NOTES
 
       - name: Publish GitHub Release
         env:
