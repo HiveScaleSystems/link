@@ -45,6 +45,9 @@ final class ArrivalListener {
         final Ticket.Claims claims = link.admit(event.getReferralData(), event.getUuid());
         if (claims != null) {
             arriving.put(event.getUuid(), claims);
+            final long left = Math.max(0, (claims.expiresAt() - System.currentTimeMillis()) / 1000);
+            log.info("[Link] ticket from " + claims.source() + " for " + event.getUsername()
+                    + ": signed, addressed here, " + left + "s left, first use");
             return;
         }
         if (event.isReferralConnection()) {

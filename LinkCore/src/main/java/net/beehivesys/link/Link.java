@@ -163,6 +163,9 @@ public final class Link implements AutoCloseable {
                     ? "There are no " + group + " servers."
                     : "Every " + group + " server is full.");
         }
+        log.info("[Link] matched " + target.id()
+                + (target.reportsLoad() ? " (" + target.players() + "/" + target.maxPlayers() + " players" : " (load unknown")
+                + ", strategy " + config.strategy.name().toLowerCase() + ")");
         return route(player, target, null);
     }
 
