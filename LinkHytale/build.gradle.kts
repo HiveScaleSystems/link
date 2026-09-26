@@ -14,7 +14,7 @@ java {
 }
 
 base {
-    archivesName.set("Link")
+    archivesName.set("link-hytale")
 }
 
 repositories {
