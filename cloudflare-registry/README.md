@@ -38,7 +38,7 @@ Every request needs `Authorization: Bearer <LINK_TOKEN>`.
 | Request | Response |
 |---|---|
 | `GET /v1/secret` | `{"secret": "..."}`, created on the first call |
-| `PUT /v1/servers/{id}` with the server as JSON | `{"servers": [...]}`, the live network including you |
+| `PUT /v1/servers/{id}` with the server as JSON, including its `online` players | `{"servers": [...]}`, the live network including you |
 | `DELETE /v1/servers/{id}` | `204` |
 
 A server that has not sent a heartbeat for 30 seconds drops out of the list. Anything that speaks

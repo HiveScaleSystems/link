@@ -7,7 +7,7 @@ import { DurableObject } from "cloudflare:workers";
  *
  * Protocol (every request needs `Authorization: Bearer <LINK_TOKEN>`):
  *   GET    /v1/secret        -> {"secret": "..."}          created on first call
- *   PUT    /v1/servers/{id}  body: server JSON -> {"servers": [...]}
+ *   PUT    /v1/servers/{id}  body: server JSON, with its online players -> {"servers": [...]}
  *   DELETE /v1/servers/{id}  -> 204
  */
 
@@ -19,6 +19,14 @@ export interface Env {
 /** Link sends a heartbeat every 10 seconds; missing three in a row drops a server out of matchmaking. */
 const STALE_AFTER_MS = 30_000;
 const MAX_SERVERS = 500;
+/** Per server. Far above any real Hytale server, but it keeps one bad heartbeat from bloating storage. */
+const MAX_ONLINE = 2_000;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface LinkPlayer {
+  uuid: string;
+  name: string;
+}
 
 interface LinkServer {
   id: string;
@@ -27,6 +35,7 @@ interface LinkServer {
   port: number;
   players: number;
   maxPlayers: number;
+  online: LinkPlayer[];
   lastSeen?: number;
 }
 
@@ -146,7 +155,26 @@ function parseServer(body: unknown, id: string): LinkServer | null {
     port: b.port as number,
     players: int(b.players) ? (b.players as number) : -1,
     maxPlayers: int(b.maxPlayers) ? (b.maxPlayers as number) : -1,
+    online: parseOnline(b.online),
   };
+}
+
+/** Keeps the well-formed entries and drops the rest, so one bad name doesn't cost the whole list. */
+function parseOnline(value: unknown): LinkPlayer[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const players: LinkPlayer[] = [];
+  for (const entry of value.slice(0, MAX_ONLINE)) {
+    if (typeof entry !== "object" || entry === null) {
+      continue;
+    }
+    const { uuid, name } = entry as Record<string, unknown>;
+    if (typeof uuid === "string" && UUID.test(uuid) && typeof name === "string" && name.length > 0 && name.length <= 64) {
+      players.push({ uuid, name });
+    }
+  }
+  return players;
 }
 
 /** Constant-time, so response timing does not reveal how much of a guessed token was right. */

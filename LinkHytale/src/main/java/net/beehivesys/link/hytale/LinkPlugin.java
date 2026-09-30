@@ -10,9 +10,12 @@ import net.beehivesys.link.Link;
 import net.beehivesys.link.LinkConfig;
 import net.beehivesys.link.LinkException;
 import net.beehivesys.link.LinkLog;
+import net.beehivesys.link.LinkPlayer;
 import net.beehivesys.link.LinkServer;
+import net.beehivesys.link.hytale.command.FindCommand;
 import net.beehivesys.link.hytale.command.LinkStatusCommand;
 import net.beehivesys.link.hytale.command.PlayCommand;
+import net.beehivesys.link.hytale.command.PlayersCommand;
 import net.beehivesys.link.hytale.command.ServerCommand;
 import net.beehivesys.link.hytale.command.ServersCommand;
 
@@ -25,7 +28,9 @@ import java.util.logging.Level;
  * {@code link.json} in this plugin's data folder.
  *
  * <p>Other plugins use the static methods here: {@link #send(PlayerRef, String)} to move a player to
- * a named server and {@link #play(PlayerRef, String)} to matchmake them into a group.
+ * a named server, {@link #play(PlayerRef, String)} to matchmake them into a group, and
+ * {@link #servers(String)} to see which servers are out there, and {@link #players()} and
+ * {@link #find(String)} to see who is where.
  */
 public final class LinkPlugin extends JavaPlugin {
 
@@ -58,7 +63,10 @@ public final class LinkPlugin extends JavaPlugin {
         }
 
         link = new Link(config, Link.backendFor(config), log,
-                () -> Universe.get().getPlayerCount(),
+                // Link fills in the server id, so it is left null here.
+                () -> Universe.get().getPlayers().stream()
+                        .map(p -> new LinkPlayer(p.getUuid(), p.getUsername(), null))
+                        .toList(),
                 HytaleServer.get().getConfig().getMaxPlayers());
         arrivals = new ArrivalListener(link, log);
         arrivals.register(getEventRegistry());
@@ -66,6 +74,8 @@ public final class LinkPlugin extends JavaPlugin {
         getCommandRegistry().registerCommand(new ServerCommand());
         getCommandRegistry().registerCommand(new PlayCommand());
         getCommandRegistry().registerCommand(new ServersCommand());
+        getCommandRegistry().registerCommand(new PlayersCommand());
+        getCommandRegistry().registerCommand(new FindCommand());
         getCommandRegistry().registerCommand(new LinkStatusCommand());
     }
 
@@ -91,6 +101,46 @@ public final class LinkPlugin extends JavaPlugin {
     public static Link link() {
         final LinkPlugin plugin = instance;
         return plugin == null ? null : plugin.link;
+    }
+
+    /**
+     * Every server in the network, this one included. Read from Link's local copy of the registry, so
+     * it is cheap enough for a menu. Empty when Link is not running on this server.
+     */
+    public static List<LinkServer> servers() {
+        final Link link = link();
+        return link == null ? List.of() : link.servers();
+    }
+
+    /** The servers in one group, e.g. {@code lobby}. Empty when there are none or Link is not running. */
+    public static List<LinkServer> servers(final String group) {
+        final Link link = link();
+        return link == null ? List.of() : link.servers(group);
+    }
+
+    /**
+     * Everyone online in the network. Other servers' players are as of their last heartbeat, a few
+     * seconds old at most. Needs a Redis or HTTP registry to include other servers: in a static
+     * network, only this server's players are known. Empty when Link is not running.
+     */
+    public static List<LinkPlayer> players() {
+        final Link link = link();
+        return link == null ? List.of() : link.players();
+    }
+
+    /** The players on one server, by id. Empty when it has none, doesn't share its list, or Link is not running. */
+    public static List<LinkPlayer> players(final String serverId) {
+        final Link link = link();
+        return link == null ? List.of() : link.players(serverId);
+    }
+
+    /**
+     * Where a player is, by name (not case sensitive) or uuid. Null when they are not online, or are
+     * on a server that doesn't share its list.
+     */
+    public static LinkPlayer find(final String nameOrUuid) {
+        final Link link = link();
+        return link == null ? null : link.find(nameOrUuid);
     }
 
     /** Sends a player to one named server. */

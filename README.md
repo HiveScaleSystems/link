@@ -13,9 +13,9 @@ server and this player, and that it has not been used before. A client cannot fo
 
 Servers find each other through a **registry**. Pick the one that fits:
 
-| Registry | You need | Live player counts | Auto-join |
+| Registry | You need | Live player counts and lists | Auto-join |
 |---|---|---|---|
-| `static` | Nothing | No (round robin) | No, list servers by hand |
+| `static` | Nothing | No (round robin, `/players` knows only this server) | No, list servers by hand |
 | `redis` | A Redis you run | Yes | Yes |
 | `http` | A free Cloudflare account (template in `cloudflare-registry/`) | Yes | Yes |
 
@@ -82,7 +82,7 @@ then on every server:
 | Key | Default | Meaning |
 |---|---|---|
 | `serverId` | `lobby-1` | Unique name of this server. Tickets are addressed to it. |
-| `group` | `lobby` | What `/play <group>` matches on. |
+| `group` | `lobby` | The server's type, e.g. `lobby` or `skywars`. What `/play <group>` matches on. |
 | `host`, `port` | `""`, `5520` | Where other servers send players to reach this one. Not used by `static`, which reads them from `servers`. |
 | `strategy` | `fill` | `fill` packs the busiest server with room (minigames); `spread` picks the emptiest (lobbies). |
 | `requireTicket` | `false` | Turn on for game servers: players who join directly are sent to `fallbackGroup`. |
@@ -97,7 +97,9 @@ Environment variables override the file: `LINK_SERVER_ID`, `LINK_GROUP`, `LINK_H
 |---|---|---|
 | `/server <name>` | Everyone | Go to a specific server |
 | `/play <group>` | Everyone | Matchmake into a group |
-| `/servers` | Everyone | List the network |
+| `/servers [group]` | Everyone | List the network, or one group |
+| `/players [server]` | Everyone | Who is online in the network, or on one server |
+| `/find <player>` | Everyone | Which server a player is on |
 | `/link` | Admins | Connection status |
 
 ## For plugin developers
@@ -106,7 +108,9 @@ Environment variables override the file: `LINK_SERVER_ID`, `LINK_GROUP`, `LINK_H
 LinkPlugin.send(playerRef, "sw-1");             // to a named server
 LinkPlugin.send(playerRef, "farm-1", "farm-42"); // into a specific world there
 LinkPlugin.play(playerRef, "skywars");          // matchmake
-LinkPlugin.link().servers("skywars");           // read the network
+LinkPlugin.servers("lobby");                    // list one group, empty if Link isn't running
+LinkPlugin.players();                           // everyone online in the network
+LinkPlugin.find("Steve");                       // which server Steve is on, or null
 ```
 
 Each throws `LinkException` with a message you can show the player.

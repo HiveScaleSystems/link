@@ -9,12 +9,16 @@ import net.beehivesys.link.ticket.Ticket;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.IntSupplier;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * One server's view of the network: who is out there, and the tickets to get players between them.
@@ -37,7 +41,8 @@ public final class Link implements AutoCloseable {
     private final LinkConfig config;
     private final NetworkBackend backend;
     private final LinkLog log;
-    private final IntSupplier onlinePlayers;
+    /** Who is on this server right now, by uuid and name. The server field is filled in here. */
+    private final Supplier<List<LinkPlayer>> onlinePlayers;
     private final int maxPlayers;
     private final Matchmaker matchmaker = new Matchmaker();
     private final ReplayGuard replayGuard = new ReplayGuard();
@@ -56,7 +61,7 @@ public final class Link implements AutoCloseable {
     }
 
     public Link(final LinkConfig config, final NetworkBackend backend, final LinkLog log,
-                final IntSupplier onlinePlayers, final int maxPlayers) {
+                final Supplier<List<LinkPlayer>> onlinePlayers, final int maxPlayers) {
         this.config = config;
         this.backend = backend;
         this.log = log;
@@ -106,18 +111,23 @@ public final class Link implements AutoCloseable {
     }
 
     public LinkServer self() {
-        final String host = config.host;
-        final int port = config.port;
+        final List<LinkPlayer> online = localPlayers();
+        final long now = System.currentTimeMillis();
         if (config.backend == LinkConfig.Backend.STATIC) {
             for (final LinkConfig.StaticServer s : config.servers) {
                 if (s.id.equals(config.serverId)) {
-                    return new LinkServer(s.id, s.group, s.host, s.port, onlinePlayers.getAsInt(), maxPlayers,
-                            System.currentTimeMillis());
+                    return new LinkServer(s.id, s.group, s.host, s.port, online.size(), maxPlayers, now, online);
                 }
             }
         }
-        return new LinkServer(config.serverId, config.group, host, port, onlinePlayers.getAsInt(), maxPlayers,
-                System.currentTimeMillis());
+        return new LinkServer(config.serverId, config.group, config.host, config.port, online.size(), maxPlayers,
+                now, online);
+    }
+
+    private List<LinkPlayer> localPlayers() {
+        return onlinePlayers.get().stream()
+                .map(p -> new LinkPlayer(p.uuid(), p.name(), config.serverId))
+                .toList();
     }
 
     public boolean isReady() {
@@ -138,6 +148,49 @@ public final class Link implements AutoCloseable {
 
     public LinkServer server(final String id) {
         return servers.stream().filter(s -> s.id().equalsIgnoreCase(id)).findFirst().orElse(null);
+    }
+
+    /**
+     * Everyone online in the network, one entry per player. Other servers' players are as of their
+     * last heartbeat; this server's are live. Servers that don't share their list (the other servers
+     * in a static network) are left out, see {@link LinkServer#reportsLoad()}.
+     */
+    public List<LinkPlayer> players() {
+        // Keyed by uuid: during a hop a player can show up on two servers until the one they left
+        // sends its next heartbeat. This server's live list goes first, so it wins for our players.
+        final Map<UUID, LinkPlayer> byUuid = new LinkedHashMap<>();
+        localPlayers().forEach(p -> byUuid.put(p.uuid(), p));
+        for (final LinkServer s : servers) {
+            if (!s.id().equals(config.serverId)) {
+                s.online().forEach(p -> byUuid.putIfAbsent(p.uuid(), p));
+            }
+        }
+        return List.copyOf(byUuid.values());
+    }
+
+    /** The players on one server: live for this one, as of the last heartbeat for the others. */
+    public List<LinkPlayer> players(final String serverId) {
+        if (serverId.equalsIgnoreCase(config.serverId)) {
+            return localPlayers();
+        }
+        final LinkServer server = server(serverId);
+        return server == null ? List.of() : server.online();
+    }
+
+    /** Where a player is, by name (not case sensitive) or uuid, or null when they are not online. */
+    public LinkPlayer find(final String nameOrUuid) {
+        final Predicate<LinkPlayer> matches = parseUuid(nameOrUuid)
+                .<Predicate<LinkPlayer>>map(uuid -> p -> p.uuid().equals(uuid))
+                .orElse(p -> p.name().equalsIgnoreCase(nameOrUuid));
+        return players().stream().filter(matches).findFirst().orElse(null);
+    }
+
+    private static Optional<UUID> parseUuid(final String value) {
+        try {
+            return Optional.of(UUID.fromString(value));
+        } catch (final IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     /** A route to one named server, optionally into a specific world there. */

@@ -16,6 +16,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -51,8 +52,12 @@ class LinkTest {
     }
 
     private static Link staticLink(final String self) {
+        return staticLink(self, List.of());
+    }
+
+    private static Link staticLink(final String self, final List<LinkPlayer> online) {
         final LinkConfig config = staticConfig(self);
-        final Link link = new Link(config, new StaticBackend(config), LinkLog.NONE, () -> 0, 100);
+        final Link link = new Link(config, new StaticBackend(config), LinkLog.NONE, () -> online, 100);
         link.start();
         return link;
     }
@@ -134,14 +139,76 @@ class LinkTest {
         }
     }
 
+    @Test
+    void anHttpRegistrySharesWhoIsOnlineAndFindsPlayersOnAnyServer() throws Exception {
+        startRegistry("token");
+        final UUID alex = UUID.randomUUID();
+        final List<LinkPlayer> onGame = new CopyOnWriteArrayList<>(List.of(online(alex, "Alex")));
+        final Link lobby = httpLink("lobby-1", "lobby", "token", () -> List.of(online(PLAYER, "Steve")));
+        final Link game = httpLink("game-1", "skywars", "token", () -> onGame);
+        try {
+            waitFor(() -> lobby.find("Alex") != null);
+
+            assertEquals("game-1", lobby.find("alex").server(), "names are not case sensitive");
+            assertEquals("game-1", lobby.find(alex.toString()).server(), "a uuid works too");
+            assertEquals("lobby-1", lobby.find("Steve").server());
+            assertEquals(2, lobby.players().size());
+            assertEquals(List.of("Alex"), lobby.players("game-1").stream().map(LinkPlayer::name).toList());
+            assertNull(lobby.find("Nobody"));
+
+            onGame.clear();
+            waitFor(() -> lobby.find("Alex") == null);
+            assertTrue(lobby.players("game-1").isEmpty(), "a player who left drops out on the next heartbeat");
+        } finally {
+            lobby.close();
+            game.close();
+        }
+    }
+
+    @Test
+    void aPlayerMidHopIsListedOnceOnTheServerTheyAreLiveOn() throws Exception {
+        startRegistry("token");
+        // The game server still reports Steve from before he hopped; the lobby has him live.
+        final Link game = httpLink("game-1", "skywars", "token", () -> List.of(online(PLAYER, "Steve")));
+        final Link lobby = httpLink("lobby-1", "lobby", "token", () -> List.of(online(PLAYER, "Steve")));
+        try {
+            waitFor(() -> lobby.server("game-1") != null && !lobby.server("game-1").online().isEmpty());
+
+            assertEquals(1, lobby.players().size());
+            assertEquals("lobby-1", lobby.find("Steve").server());
+        } finally {
+            lobby.close();
+            game.close();
+        }
+    }
+
+    @Test
+    void aStaticNetworkOnlyKnowsItsOwnPlayers() {
+        try (Link lobby = staticLink("lobby-1", List.of(online(PLAYER, "Steve")))) {
+            assertEquals("lobby-1", lobby.find("Steve").server());
+            assertTrue(lobby.players("game-1").isEmpty());
+            assertFalse(lobby.server("game-1").reportsLoad(), "so callers can tell unknown from empty");
+        }
+    }
+
+    /** A player as the engine reports them: Link fills in the server. */
+    private static LinkPlayer online(final UUID uuid, final String name) {
+        return new LinkPlayer(uuid, name, null);
+    }
+
     private Link httpLink(final String id, final String group, final String token) {
+        return httpLink(id, group, token, List::of);
+    }
+
+    private Link httpLink(final String id, final String group, final String token,
+                          final java.util.function.Supplier<List<LinkPlayer>> online) {
         final LinkConfig config = new LinkConfig();
         config.serverId = id;
         config.group = group;
         config.host = "10.0.0." + (id.hashCode() & 0xff);
         config.backend = LinkConfig.Backend.HTTP;
         config.http = http(token);
-        final Link link = new Link(config, new HttpBackend(config.http), LinkLog.NONE, () -> 0, 100);
+        final Link link = new Link(config, new HttpBackend(config.http), LinkLog.NONE, online, 100);
         link.start();
         return link;
     }
