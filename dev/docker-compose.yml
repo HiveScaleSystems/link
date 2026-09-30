@@ -1,0 +1,53 @@
+# Two real Hytale servers and a Redis, to test Link by joining with the game.
+# See README.md in this folder. Server files land in lobby/ and game/ (gitignored).
+name: link-dev
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "link-dev", "--save", ""]
+    restart: unless-stopped
+
+  # The image downloads the server and assets on first boot, and keeps them in the mounted folder.
+  lobby:
+    image: indifferentbroccoli/hytale-server-docker
+    container_name: link-lobby
+    environment:
+      SERVER_NAME: "Link lobby"
+      DEFAULT_PORT: "5520"
+      AUTH_MODE: "authenticated"
+      MAX_PLAYERS: "20"
+      MIN_MEMORY: "2G"
+      MAX_MEMORY: "3G"
+      DOWNLOAD_ON_START: "true"
+    ports:
+      - "5520:5520/udp"
+    volumes:
+      - ./lobby:/home/hytale/server-files
+    tty: true
+    stdin_open: true
+    stop_grace_period: 30s
+    depends_on:
+      - redis
+
+  # Reuses the lobby's download (dev/setup.sh copies it), so it never downloads by itself.
+  game:
+    image: indifferentbroccoli/hytale-server-docker
+    container_name: link-game
+    environment:
+      SERVER_NAME: "Link SkyWars"
+      DEFAULT_PORT: "5521"
+      AUTH_MODE: "authenticated"
+      MAX_PLAYERS: "12"
+      MIN_MEMORY: "2G"
+      MAX_MEMORY: "3G"
+      DOWNLOAD_ON_START: "false"
+    ports:
+      - "5521:5521/udp"
+    volumes:
+      - ./game:/home/hytale/server-files
+    tty: true
+    stdin_open: true
+    stop_grace_period: 30s
+    depends_on:
+      - redis

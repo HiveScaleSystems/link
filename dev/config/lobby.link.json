@@ -1,0 +1,14 @@
+{
+  "serverId": "lobby-1",
+  "group": "lobby",
+  "host": "127.0.0.1",
+  "port": 5520,
+  "backend": "redis",
+  "redis": {
+    "url": "redis://:link-dev@redis:6379/0",
+    "namespace": "link"
+  },
+  "strategy": "fill",
+  "requireTicket": false,
+  "fallbackGroup": "lobby"
+}
