@@ -18,5 +18,6 @@
         "description": "A long random string, for example from `openssl rand -hex 32`. Every server in your network puts the same value in `http.token` in its `link.json`. Keep it private: anyone with it can join your network."
       }
     }
-  }
+  },
+  "license": "MIT"
 }

@@ -15,6 +15,7 @@
 <p align="center">
   <a href="https://github.com/HiveScaleSystems/link/actions/workflows/build.yml"><img src="https://github.com/HiveScaleSystems/link/actions/workflows/build.yml/badge.svg" alt="build"></a>
   <a href="https://github.com/HiveScaleSystems/link/releases"><img src="https://img.shields.io/github/v/release/HiveScaleSystems/link?include_prereleases&label=release" alt="release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f6bff" alt="MIT license"></a>
 </p>
 
 <p align="center">
@@ -112,3 +113,7 @@ cd dev && ./setup.sh         # two real servers and a Redis in Docker, see dev/R
 | `dev/` | A local test network. |
 
 Bug reports, ideas and pull requests are welcome.
+
+## License
+
+[MIT](LICENSE).
