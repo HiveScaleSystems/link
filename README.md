@@ -80,11 +80,11 @@ Every setting, and the Redis and Cloudflare setups, are in the [docs](https://li
 ## For plugin developers
 
 ```java
-LinkPlugin.play(player, "skywars");          // matchmake into a group
-LinkPlugin.send(player, "sw-1");             // to one server
+LinkPlugin.play(player, "skywars");           // matchmake into a group
+LinkPlugin.send(player, "sw-1");              // to one server
 LinkPlugin.send(player, "farm-1", "farm-42"); // into a world there
-LinkPlugin.servers("lobby");                 // every lobby
-LinkPlugin.find("Steve");                    // which server Steve is on, or null
+LinkPlugin.servers("lobby");                  // every lobby
+LinkPlugin.find("Steve");                     // which server Steve is on, or null
 ```
 
 Moves throw `LinkException` with a message you can show the player. See the
@@ -94,9 +94,8 @@ Moves throw `LinkException` with a message you can show the player. See the
 
 A ticket is signed with the network secret, names one player and one server, expires after 30
 seconds and works once. All servers share that secret, so this fits a network where you run every
-server. If some servers are run by others, you need a separate key per server:
-[HiveScale](https://beehivesys.net) is built that way. Details in the
-[security model](https://link.beehivesys.net/docs/security).
+server. If some servers are run by others, you need a separate key per server, which Link
+doesn't do. Details in the [security model](https://link.beehivesys.net/docs/security).
 
 ## Development
 
